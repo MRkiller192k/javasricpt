@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="catchaliens.css">
+    <title>Catch the aliens</title>
+</head>
+<body>
+
+    <header>
+        <p>Time left: <span id="time">60</span> Aliens caught: <span id="points">0</span></p>
+    </header>
+    <section>
+        <canvas id="gamearea"></canvas>
+        
+    </section>
+        <!-- oppgave 4-2/3-->
+        <button id="start" onclick="playGame()">start</button>
+        
+
+    <p><a href="https://www.flaticon.com/free-icons/alien" title="alien icons">Alien icon created by Smashicons</a>, 
+    <a href="https://www.flaticon.com/free-icons/spaceship" title="spaceship icons">Spaceship icons created by Freepik</a> - Flaticon</p>
+    <aside id="history">
+        <h2>Stats</h2>
+        <!--måtte bytte navnet her fordi øvers på span id står det points, endre dette med point for at koden skal kjøre, den kjørte ikke da den hadde samme navn i begge id-->
+        <ol id="point"></ol> 
+    </aside>
+    <script>
+        //Sett opp Canvas:
+        // oppgave 1: feil nr1: getelementBYID var skrevet slik, gjorde om bokstaven til liten y. 
+        const canvas = document.getElementById("gamearea")
+        
+        
+        // oppgave 3-3: størrelsen på spillbrettet. 
+        canvas.width = 960; //64px ikoner * 11 ruter
+        canvas.height = 640; //64px ikoner * 8 ruter
+        const ctx = canvas.getContext("2d");
+        //oppgave 3: font størrelse og fargen rød for game over. 
+        ctx.font= "60px Arial";
+        ctx.fillStyle= "red"
+        
+        
+        
+        
+
+        //Gjør klar spillinformasjon
+        //oppgave 3-2: 60sek istedenfor 10. i tillegg har jeg en del av oppgave 5.  
+        let countdown = 5
+        let iconsize = 64
+        // en del a oppgave 5 la inn get gameOver og let point.
+        let gameOver = false
+        let point= 0
+        const player = { speed: 8} // oppgave 3-4: har hastigehet på 8, så går romskipet på envanlig hastighet, ikke for rask og ikke for sakte, prøvde den på 250 og da funket den ikke, hastigehet på 8 ble derdmed en middels hastighet.   
+        const enemy = { }
+        let aliensCaught = 0;
+        let history = []
+        history.length < 1 ? document.getElementById("history").style.display = "none" : document.getElementById("history").style.display = "block"
+        
+        
+
+
+        //Gjør klar bakgrunnsbilde for spiller
+        let playerLoaded = false;
+        const playerImage = new Image();
+        playerImage.onload = () => { playerLoaded = true; }
+        playerImage.src = "img/spaceship.png"
+
+        //Gjør klar bakgrunnsbilde for alien
+        let enemyLoaded = false;
+        const enemyImage = new Image();
+        enemyImage.onload = () => { enemyLoaded = true; }
+        enemyImage.src = "img/alien.png"
+
+        //Lag en funksjon som kjører i gang spillelementene
+        //Plasser spilleren i midten av brettet, og fienden et vilkårlig sted innenfor spillbrettet
+        function drawCharacters() {
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            enemy.x = (iconsize / 2) + (Math.random() * (canvas.width - iconsize));
+            enemy.y = (iconsize / 2) + (Math.random() * (canvas.height - iconsize));
+        }
+        /************************************************************** 
+         OPPGAVE 2 - KOMMENTAR 1
+         Forklar hva de fire linjene i funksjonen drawCharacters() gjør 
+         - din kommentar her - det linjene forklarer er at den først tegner lengen og høyden på canvas og spillelementene. 
+        ***************************************************************/
+
+        //Sjekk om spilleren har trykket ned (og holder) en tast:
+        document.addEventListener('keydown', buttonPressed);
+        document.addEventListener('keyup', buttonReleased);
+        //Gjør klar variabler for å bestemme hvilken retning som er aktiv:
+        let left = false
+        let right = false
+        let up = false
+        let down = false
+        //Set retningsvariabel til true hvis riktig piltast er trykket:
+        // oppgave 1: feil/mangel nr2: den manglet {-dette tegnet. 
+        function buttonPressed(event) {
+            if(event.key === "ArrowLeft") { left = true } 
+            if(event.key === "ArrowRight") { right = true } 
+            // oppgave 1: feil nr3: det lå en punktum etter true}- som ikke skulle være der. 
+            if(event.key === "ArrowUp") { up = true } 
+            if(event.key === "ArrowDown") { down = true } 
+        }
+        //Sett retningsvariabel til false hvis piltasten blir sluppet opp:
+        function buttonReleased(event) {
+            if(event.key === "ArrowLeft") { left = false } 
+            if(event.key === "ArrowRight") { right = false } 
+            if(event.key === "ArrowUp") { up = false } 
+            if(event.key === "ArrowDown") { down = false } 
+        }
+        /************************************************************** 
+         OPPGAVE 2 - KOMMENTAR 2
+         Forklar hvorfor vi trenger å sjekke både når en knapp er trykket ned,
+         og når den er sluppet opp igjen. 
+         - din kommentar her - for å se om koden for knapp/piltast er riktig og om den funker som den skal, når du trykker på piltasten for å sluppe opp eller trykke knappen ned.  
+        ***************************************************************/
+        
+        //Funksjon som modifiserer spillerens posisjon på spillbrettet:
+        function playerMovement(speedModifier) {
+            //Flytt player i riktig retning
+            // oppgave 1: feil nr4: det lå to spm tegn.   
+            left ? player.x -= player.speed * (speedModifier) : null
+            right ? player.x += player.speed * speedModifier : null
+            up ? player.y -= player.speed * speedModifier : null
+            down ? player.y += player.speed * speedModifier : null
+        
+
+            //Sjekk om player treffer fienden
+            if(
+                player.x <= (enemy.x + (iconsize / 2)) &&
+                player.y <= (enemy.y + (iconsize / 2)) &&
+                enemy.x <= (player.x + (iconsize / 2)) &&
+                enemy.y <= (player.y + (iconsize / 2))
+            ) {
+                aliensCaught++
+                drawCharacters()
+            }
+        }
+
+        //Lag funksjon for nedtelling
+        function countdownFunction() {
+            countdown--
+            if(countdown <= 0) {
+                clearInterval(countdownFunction)
+                gameOver = true
+                countdown = 0
+                playerLoaded = false
+                enemyLoaded = false
+                // oppgave 4-4/5- oppgave 5 i tillegg en del av det ligger her: 
+                document.getElementById("start").style.display = "block";
+                document.getElementById("point").innerHTML = "<li>points ("+aliensCaught +")</li>"
+            
+               
+                if (point === 1) {
+                    history.push(aliensCaught)
+                    point = 0
+
+                }
+                
+
+            }
+            
+        }
+       
+        
+       
+        /************************************************************** 
+         OPPGAVE 2 - KOMMENTAR 3
+         Forklar hva linjene i funksjonen countDownFunction() gjør
+         - din kommentar her - funksjonen countDown begynner å telle hvor mange ganger spilleren klarer å treffe fienden fra når spillet har starter til spillets ende. 
+        ***************************************************************/
+
+        //Kjør funksjonen for nedtelling hver sekund (1000. milisekund)
+        setInterval(countdownFunction, 1000)
+        
+        
+        
+        //Funksjon som tegner/fyller ut alle spill-elementene i canvas:
+        function drawGameElements() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            playerLoaded ? ctx.drawImage(playerImage, player.x, player.y) : null
+            enemyLoaded ? ctx.drawImage(enemyImage, enemy.x, enemy.y) : null
+            // oppgave 5: 
+            if (gameOver) {
+                    document.getElementById("point").innerHTML = null
+                    let list = ""
+                    history.map(score => {
+                        list += `<li>${score}</li>`
+                    })
+                    document.getElementById("point").innerHTML = list
+                    history.length < 1 ? document.getElementById("history").style.display = "none" : document.getElementById("history").style.display = "block"
+                }
+                //oppgave 3: Game over teksten. 
+                    if(countdown <=0){
+                    gameOver ? ctx.fillText("GAME OVER!", 300, 200) : null
+                    } 
+                    document.getElementById("time").innerHTML = countdown
+                    document.getElementById("points").innerHTML = aliensCaught
+                   
+           }
+          
+            
+
+
+
+        
+        
+
+        //Funksjon som kjører spillet
+        // oppgave 1: feil nr 5: function manglet bokstaven n. 
+        function renderGame()  {
+            playerMovement(1)
+            drawGameElements()
+            requestAnimationFrame(renderGame)
+            
+            
+        }
+       
+
+       
+
+        // Cross-browser support for requestAnimationFrame (https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame)
+        requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || window.mozRequestAnimationFrame;
+        
+        
+        //Funksjon for start/restart spill
+       
+       
+        function playGame() {
+            //Startverdier
+            //oppgave 3: 
+            countdown = 5
+            point = 1
+            let gameOver = false
+            playerLoaded = false
+            enemyLoaded = false
+            playerImage.onload = () => { playerLoaded = true; }
+            playerImage.src = "img/spaceship.png"
+            enemyImage.onload = () => { enemyLoaded = true; }
+            enemyImage.src = "img/alien.png"
+            // fortsettelse oppgave 4-5: 
+            document.getElementById("start").style.display = "none";
+            document.getElementById("point").innerHTML = "<li>points ("+ aliensCaught +")</li>"
+
+          
+            //Tegne spill-elementer ved oppstart
+            drawCharacters()
+            renderGame()
+        }
+       
+
+       
+        // oppgave 4-1: 
+        //Kjør hele spillet med playGame-funksjonen
+        //playGame()- la inn dette som en kommentar for at spillet ikke skal starte med en gang nettelseren lastes. 
+    </script>
+
+</body>
+</html>
